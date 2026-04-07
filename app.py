@@ -82,14 +82,17 @@ if predict_button:
     })
     
     with st.spinner('Running AI model calculation, please wait...'):
-        time.sleep(0.5) # Add a slight delay for better UX
+        time.sleep(0.5) 
         prob = model.predict_proba(input_df)[0][1]
         risk_percentage = prob * 100
-    
+
     st.markdown("<hr style='border:1px dashed #E5E8E8'>", unsafe_allow_html=True)
     st.markdown("### 📊 Screening Results Assessment")
     
-    # 5.1 Plotly Risk Gauge Chart
+    # 定义您算出的最佳临床截断值 (Optimal Cut-off)
+    optimal_cutoff = 93.0
+    
+    # 5.1 Plotly Risk Gauge Chart (已更新阈值分区)
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = risk_percentage,
@@ -97,14 +100,14 @@ if predict_button:
         title = {'text': "Predicted Probability", 'font': {'size': 18}},
         gauge = {
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-            'bar': {'color': "rgba(0,0,0,0)"}, # Hide default progress bar
+            'bar': {'color': "rgba(0,0,0,0)"}, # 隐藏默认进度条
             'bgcolor': "white",
             'borderwidth': 2,
             'bordercolor': "gray",
             'steps': [
-                {'range': [0, 20], 'color': "#2ECC71"},   # Green (Safe)
-                {'range': [20, 50], 'color': "#F1C40F"},  # Yellow (Warning)
-                {'range': [50, 100], 'color': "#E74C3C"}  # Red (High Risk)
+                {'range': [0, 50], 'color': "#2ECC71"},                   # 绿色 (低危区 0-50%)
+                {'range': [50, optimal_cutoff], 'color': "#F1C40F"},      # 黄色 (中度预警区 50-93%)
+                {'range': [optimal_cutoff, 100], 'color': "#E74C3C"}       # 红色 (极高危区 93-100%)
             ],
             'threshold': {
                 'line': {'color': "black", 'width': 5},
@@ -115,14 +118,14 @@ if predict_button:
     ))
     fig.update_layout(height=350, margin=dict(l=20, r=20, t=50, b=20))
     st.plotly_chart(fig, use_container_width=True)
-    
-    # 5.2 Clinical Intervention Suggestions based on thresholds
-    if risk_percentage >= 50:
-        st.error(f"**High Risk Warning**: The predicted probability for this patient is {risk_percentage:.1f}%. Immediate further imaging or pathological examination and close follow-up are strongly recommended.")
-    elif risk_percentage >= 20:
-        st.warning(f"**Moderate Risk**: The patient shows a moderate tendency for the condition ({risk_percentage:.1f}%). Consider combining with other clinical tests and schedule a follow-up assessment.")
+
+    # 5.2 Clinical Intervention Suggestions based on NEW optimal cut-off
+    if risk_percentage >= optimal_cutoff:
+        st.error(f"**High Risk Warning**: The predicted probability is {risk_percentage:.1f}%, which exceeds the strict clinical cut-off of {optimal_cutoff}%. Immediate further imaging or pathological examination and close follow-up are strongly recommended.")
+    elif risk_percentage >= 50:
+        st.warning(f"**Moderate Risk**: The predicted probability is {risk_percentage:.1f}%. While below the strict high-risk cut-off, it warrants clinical attention. Consider combining with other clinical tests and schedule a follow-up assessment.")
     else:
-        st.success(f"**Low Risk**: The predicted probability is low ({risk_percentage:.1f}%). Routine health guidance and annual check-ups are advised.")
+        st.success(f"**Low Risk**: The predicted probability is {risk_percentage:.1f}%. Routine health guidance and annual check-ups are advised.")
 
 # ==========================================
 # 6. Footer & Disclaimer
