@@ -1,8 +1,8 @@
 import streamlit as st
 import xgboost as xgb
 import pandas as pd
+import json
 import time
-import plotly.graph_objects as go
 
 # ==========================================
 # 1. Global Page Configuration
@@ -15,16 +15,23 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. Model Loading and Caching
+# 2. Model & Thresholds Loading
 # ==========================================
 @st.cache_resource
 def load_model():
-    # Ensure your best model is saved as xgb_clinical_model.json in the same directory
     model = xgb.XGBClassifier()
     model.load_model("xgb_clinical_model.json")
     return model
 
+@st.cache_resource
+def load_thresholds():
+    with open("thresholds.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
 model = load_model()
+thresholds = load_thresholds()
+T_LOW = thresholds["T_low"]
+T_HIGH = thresholds["T_high"]
 
 # ==========================================
 # 3. Custom UI Styles & Header
@@ -72,60 +79,68 @@ with col_btn2:
     predict_button = st.button("🚀 EXECUTE RISK ASSESSMENT", use_container_width=True, type="primary")
 
 if predict_button:
-    # Construct input DataFrame (Columns must strictly match your training 'core_features')
-    # Strict order: ['Gender', 'Age', 'Night Sleep Pain', 'Hard Manual Labour Pain']
     input_df = pd.DataFrame({
         'Gender': [gender_val],
         'Age': [age_val],
         'Night Sleep Pain': [night_pain_val],
         'Hard Manual Labour Pain': [labour_pain_val]
     })
-    
+
     with st.spinner('Running AI model calculation, please wait...'):
-        time.sleep(0.5) 
+        time.sleep(0.5)
         prob = model.predict_proba(input_df)[0][1]
-        risk_percentage = prob * 100
 
     st.markdown("<hr style='border:1px dashed #E5E8E8'>", unsafe_allow_html=True)
-    st.markdown("### 📊 Screening Results Assessment")
-    
-    # 定义您算出的最佳临床截断值 (Optimal Cut-off)
-    optimal_cutoff = 93.0
-    
-    # 5.1 Plotly Risk Gauge Chart (已更新阈值分区)
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = risk_percentage,
-        number = {'suffix': "%", 'font': {'size': 45, 'color': "#2C3E50"}},
-        title = {'text': "Predicted Probability", 'font': {'size': 18}},
-        gauge = {
-            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-            'bar': {'color': "rgba(0,0,0,0)"}, # 隐藏默认进度条
-            'bgcolor': "white",
-            'borderwidth': 2,
-            'bordercolor': "gray",
-            'steps': [
-                {'range': [0, 50], 'color': "#2ECC71"},                   # 绿色 (低危区 0-50%)
-                {'range': [50, optimal_cutoff], 'color': "#F1C40F"},      # 黄色 (中度预警区 50-93%)
-                {'range': [optimal_cutoff, 100], 'color': "#E74C3C"}       # 红色 (极高危区 93-100%)
-            ],
-            'threshold': {
-                'line': {'color': "black", 'width': 5},
-                'thickness': 0.75,
-                'value': risk_percentage
-            }
-        }
-    ))
-    fig.update_layout(height=350, margin=dict(l=20, r=20, t=50, b=20))
-    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("### 📊 Screening Results")
 
-    # 5.2 Clinical Intervention Suggestions based on NEW optimal cut-off
-    if risk_percentage >= optimal_cutoff:
-        st.error(f"**High Risk Warning**: The predicted probability is {risk_percentage:.1f}%, which exceeds the strict clinical cut-off of {optimal_cutoff}%. Immediate further imaging or pathological examination and close follow-up are strongly recommended.")
-    elif risk_percentage >= 50:
-        st.warning(f"**Moderate Risk**: The predicted probability is {risk_percentage:.1f}%. While below the strict high-risk cut-off, it warrants clinical attention. Consider combining with other clinical tests and schedule a follow-up assessment.")
+    # Risk stratification based on data-driven thresholds
+    if prob >= T_HIGH:
+        st.markdown("""
+            <div style='background-color:#FDEDEC; border-left:6px solid #E74C3C; padding:20px; border-radius:8px; margin:20px 0;'>
+                <h2 style='color:#C0392B; margin:0;'>⚠️ High Risk</h2>
+                <p style='color:#2C3E50; font-size:16px; margin-top:10px;'>
+                This patient is classified as <strong>high risk</strong> based on the clinical indicators provided.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        **Clinical Recommendation:**
+        - Immediate further imaging examination (e.g., DXA bone density scan) is strongly recommended
+        - Consider pathological examination if clinically indicated
+        - Arrange close follow-up and monitoring plan
+        - Evaluate the need for early intervention or preventive treatment
+        """)
+    elif prob >= T_LOW:
+        st.markdown("""
+            <div style='background-color:#FEF9E7; border-left:6px solid #F39C12; padding:20px; border-radius:8px; margin:20px 0;'>
+                <h2 style='color:#E67E22; margin:0;'>⚡ Moderate Risk</h2>
+                <p style='color:#2C3E50; font-size:16px; margin-top:10px;'>
+                This patient is classified as <strong>moderate risk</strong> and warrants further clinical attention.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        **Clinical Recommendation:**
+        - Combine with other clinical tests for comprehensive evaluation
+        - Schedule a follow-up assessment within 3-6 months
+        - Provide lifestyle and dietary guidance for bone health
+        - Monitor for symptom progression
+        """)
     else:
-        st.success(f"**Low Risk**: The predicted probability is {risk_percentage:.1f}%. Routine health guidance and annual check-ups are advised.")
+        st.markdown("""
+            <div style='background-color:#EAFAF1; border-left:6px solid #27AE60; padding:20px; border-radius:8px; margin:20px 0;'>
+                <h2 style='color:#1E8449; margin:0;'>✅ Low Risk</h2>
+                <p style='color:#2C3E50; font-size:16px; margin-top:10px;'>
+                This patient is classified as <strong>low risk</strong> based on current clinical indicators.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        **Clinical Recommendation:**
+        - Routine health guidance and annual check-ups are advised
+        - Encourage regular physical activity and adequate calcium/vitamin D intake
+        - Re-assess if new symptoms develop
+        """)
 
 # ==========================================
 # 6. Footer & Disclaimer
@@ -135,5 +150,6 @@ with st.expander("ℹ️ About the Model & Medical Disclaimer"):
     st.markdown("""
     - **Model Core**: Built on the eXtreme Gradient Boosting (XGBoost) algorithm.
     - **Feature Selection**: Utilizes SHAP values and Recursive Feature Elimination (RFE) to identify the 4 most discriminative clinical indicators from dozens of original variables.
-    - **Medical Disclaimer**: This tool is designed to assist healthcare professionals in early screening. The predicted results do not constitute a definitive medical diagnosis. Clinical judgment should be based on comprehensive patient history and other clinical indications.
+    - **Risk Stratification**: Thresholds are derived from Youden index optimization and high-sensitivity analysis on the training cohort, validated on an independent external dataset.
+    - **Medical Disclaimer**: This tool is designed to assist healthcare professionals in early screening. The risk classification does not constitute a definitive medical diagnosis. Clinical judgment should be based on comprehensive patient history and other clinical indications.
     """)

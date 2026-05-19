@@ -1,5 +1,5 @@
 streamlit
 xgboost
 pandas
-plotly
-scikit-learn
+json
+time
