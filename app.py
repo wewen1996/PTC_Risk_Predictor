@@ -60,13 +60,12 @@ with col1:
     age_val = st.number_input("Age", min_value=10, max_value=120, value=50, step=1)
 
 with col2:
-    st.markdown("#### Core Symptoms")
-    # Assuming: 0 for Absent, 1 for Present
+    st.markdown("#### Clinical Indicators")
     night_pain_input = st.selectbox("Night Sleep Pain", options=["Absent", "Present"])
     night_pain_val = 0 if night_pain_input == "Absent" else 1
-    
-    labour_pain_input = st.selectbox("Hard Manual Labour Pain", options=["Absent", "Present"])
-    labour_pain_val = 0 if labour_pain_input == "Absent" else 1
+
+    labour_input = st.selectbox("Regular Hard Physical Labour", options=["Yes", "No"])
+    labour_pain_val = 1 if labour_input == "Yes" else 0
 
 st.markdown("<br>", unsafe_allow_html=True)
 
