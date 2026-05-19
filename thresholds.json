@@ -1,0 +1,13 @@
+{
+  "T_low": 0.8601,
+  "T_high": 0.9273,
+  "description": {
+    "high_risk": "预测概率 >= 0.9273",
+    "medium_risk": "0.8601 <= 预测概率 < 0.9273",
+    "low_risk": "预测概率 < 0.8601"
+  },
+  "derivation": {
+    "T_high_method": "Youden index optimal point",
+    "T_low_method": "Sensitivity >= 0.90 with max specificity"
+  }
+}
